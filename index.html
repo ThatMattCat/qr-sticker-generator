@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Label Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            .no-print {
+                display: none;
+            }
+            .page {
+                page-break-after: always;
+            }
+            .page:last-child {
+                page-break-after: avoid;
+            }
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        
+        .no-print {
+            background-color: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .no-print h1 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .no-print input {
+            font-size: 16px;
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .no-print button {
+            font-size: 16px;
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        .no-print button:hover {
+            background-color: #0056b3;
+        }
+        
+        .url-info {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d7ff;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .url-info code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .page {
+            width: 8.5in;
+            height: 11in;
+            margin: 0 auto 20px;
+            background-color: white;
+            position: relative;
+            box-sizing: border-box;
+            /* Page margins */
+            padding: 12.7mm 4mm;
+        }
+        
+        .label-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0;
+            width: 100%;
+            height: 100%;
+            align-content: flex-start;
+        }
+        
+        .label-column {
+            width: calc(50% - 2.35mm);
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        
+        .label-column:first-child {
+            margin-right: 4.7mm;
+        }
+        
+        .label {
+            width: 101.6mm;
+            height: 50.8mm;
+         /*   border: 1px solid #ccc; */
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5mm;
+            background-color: white;
+            position: relative;
+        }
+        
+        .label-content {
+            transform: rotate(90deg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .qr-container {
+            width: 35mm;
+            height: 35mm;
+            margin-bottom: 3mm;
+        }
+        
+        .label-text-user {
+            font-size: 20pt;
+            font-weight: bold;
+            text-align: center;
+            margin: 0 0 20px 0;
+            line-height: 1.2;
+        }
+
+        .label-text-container {
+            font-size: 28pt;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0 0 0;
+            line-height: 1.2;
+        }
+        
+        @media screen {
+            .page {
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <h1>QR Code Label Generator</h1>
+        <p>Enter starting code (format: aff0a1-00001)</p>
+        <input type="text" id="startCode" placeholder="aff0a1-00001" value="aff0a1-00001">
+        <button onclick="generateLabels()">Generate Labels</button>
+        <button onclick="window.print()">Print</button>
+        <p>Number of unique codes: <input type="number" id="numCodes" value="10" min="1" style="width: 60px;"></p>
+        <p>Labels per container: <input type="number" id="labelsPerContainer" value="5" min="1" max="20" style="width: 60px;"> 
+           <span style="font-size: 12px; color: #666;">(default: 5 for sides + top)</span></p>
+        
+        <div class="url-info">
+            <strong>URL Parameters:</strong><br>
+            You can set initial values using URL parameters:<br>
+            <code>?startCode=aff0a1-00001&numCodes=20&labelsPerContainer=3</code><br>
+            <strong>Current URL:</strong> <span id="currentUrl"></span>
+        </div>
+        
+        <div class="url-info" style="background-color: #fff3cd; border-color: #ffeaa7;">
+            <strong>📄 Printing Tip:</strong><br>
+            For best results, set your browser's print settings to:<br>
+            • <strong>Margins:</strong> None (or Custom: 0)<br>
+            • <strong>Headers and footers:</strong> Off<br>
+            • <strong>Background graphics:</strong> On<br>
+            • <strong>Scale:</strong> 100% (Default)<br>
+            <em>This ensures labels align properly with your sticker sheets.</em>
+        </div>
+    </div>
+    
+    <div id="pages"></div>
+    
+    <script>
+        function getUrlParameters() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                startCode: params.get('startCode'),
+                numCodes: params.get('numCodes'),
+                labelsPerContainer: params.get('labelsPerContainer')
+            };
+        }
+        
+        function updateCurrentUrlDisplay() {
+            const startCode = document.getElementById('startCode').value;
+            const numCodes = document.getElementById('numCodes').value;
+            const labelsPerContainer = document.getElementById('labelsPerContainer').value;
+            const baseUrl = window.location.origin + window.location.pathname;
+            const urlWithParams = `${baseUrl}?startCode=${encodeURIComponent(startCode)}&numCodes=${numCodes}&labelsPerContainer=${labelsPerContainer}`;
+            document.getElementById('currentUrl').innerHTML = `<code>${urlWithParams}</code>`;
+        }
+        
+        function parseCode(code) {
+            const parts = code.split('-');
+            if (parts.length !== 2 || parts[0].length !== 6 || parts[1].length !== 5) {
+                throw new Error('Invalid code format. Expected format: aff0a1-00001 (6-digit hex - 5-digit number)');
+            }
+            
+            // Validate hex format for user ID
+            if (!/^[0-9a-fA-F]{6}$/.test(parts[0])) {
+                throw new Error('Invalid user ID format. Must be 6-digit hexadecimal (0-9, a-f)');
+            }
+            
+            // Validate numeric format for container ID
+            if (!/^\d{5}$/.test(parts[1])) {
+                throw new Error('Invalid container ID format. Must be 5-digit number');
+            }
+            
+            return {
+                userIdHex: parts[0].toLowerCase(),
+                containerId: parseInt(parts[1], 10)
+            };
+        }
+        
+        function formatCode(userIdHex, containerId) {
+            return userIdHex.toLowerCase() + '-' + String(containerId).padStart(5, '0');
+        }
+        
+        function incrementCode(userIdHex, containerId) {
+            containerId++;
+            if (containerId > 99999) {
+                containerId = 1; // Reset to 1, not 0, for container IDs
+                
+                // Convert hex to decimal, increment, convert back to hex
+                let userIdDecimal = parseInt(userIdHex, 16);
+                userIdDecimal++;
+                
+                // Handle overflow (ffffff = 16777215 in decimal)
+                if (userIdDecimal > 0xffffff) {
+                    userIdDecimal = 0;
+                }
+                
+                userIdHex = userIdDecimal.toString(16).padStart(6, '0');
+            }
+            return { userIdHex, containerId };
+        }
+        
+        function generateLabels() {
+            const startCode = document.getElementById('startCode').value;
+            const numCodes = parseInt(document.getElementById('numCodes').value, 10);
+            const labelsPerContainer = parseInt(document.getElementById('labelsPerContainer').value, 10);
+            const pagesContainer = document.getElementById('pages');
+            
+            try {
+                let { userIdHex, containerId } = parseCode(startCode);
+                pagesContainer.innerHTML = '';
+                
+                const labelsPerPage = 10;
+                const copiesPerCode = labelsPerContainer;
+                const totalLabels = numCodes * copiesPerCode;
+                const totalPages = Math.ceil(totalLabels / labelsPerPage);
+                
+                let labelIndex = 0;
+                let currentCodeIndex = 0;
+                let currentCopyIndex = 0;
+                
+                for (let pageNum = 0; pageNum < totalPages; pageNum++) {
+                    const page = document.createElement('div');
+                    page.className = 'page';
+                    
+                    const labelContainer = document.createElement('div');
+                    labelContainer.className = 'label-container';
+                    
+                    // Create two columns
+                    const leftColumn = document.createElement('div');
+                    leftColumn.className = 'label-column';
+                    const rightColumn = document.createElement('div');
+                    rightColumn.className = 'label-column';
+                    
+                    // Fill labels for this page
+                    for (let i = 0; i < labelsPerPage && labelIndex < totalLabels; i++) {
+                        const label = document.createElement('div');
+                        label.className = 'label';
+                        
+                        const labelContent = document.createElement('div');
+                        labelContent.className = 'label-content';
+                        
+                        const qrContainer = document.createElement('div');
+                        qrContainer.className = 'qr-container';
+                        qrContainer.id = `qr-${labelIndex}`;
+                        
+                        // Calculate current code
+                        let currentUserIdHex = userIdHex;
+                        let currentContainerId = containerId;
+                        for (let j = 0; j < currentCodeIndex; j++) {
+                            const incremented = incrementCode(currentUserIdHex, currentContainerId);
+                            currentUserIdHex = incremented.userIdHex;
+                            currentContainerId = incremented.containerId;
+                        }
+                        
+                        const code = formatCode(currentUserIdHex, currentContainerId);
+                        const codeParts = code.split('-');
+                        
+                        const labelTextTop = document.createElement('p');
+                        labelTextTop.className = 'label-text-user';
+                        labelTextTop.textContent = codeParts[0];
+                        
+                        const labelTextBottom = document.createElement('p');
+                        labelTextBottom.className = 'label-text-container';
+                        labelTextBottom.textContent = codeParts[1];
+                        
+                        labelContent.appendChild(labelTextTop);
+                        labelContent.appendChild(qrContainer);
+                        labelContent.appendChild(labelTextBottom);
+                        label.appendChild(labelContent);
+                        
+                        // Add to appropriate column (5 per column)
+                        if (i < 5) {
+                            leftColumn.appendChild(label);
+                        } else {
+                            rightColumn.appendChild(label);
+                        }
+                        
+                        // Store QR code data for later generation
+                        qrContainer.setAttribute('data-code', code);
+                        
+                        // Update counters
+                        currentCopyIndex++;
+                        if (currentCopyIndex >= copiesPerCode) {
+                            currentCopyIndex = 0;
+                            currentCodeIndex++;
+                        }
+                        labelIndex++;
+                    }
+                    
+                    labelContainer.appendChild(leftColumn);
+                    labelContainer.appendChild(rightColumn);
+                    page.appendChild(labelContainer);
+                    pagesContainer.appendChild(page);
+                }
+                
+                // Generate all QR codes after DOM is complete
+                const qrContainers = document.querySelectorAll('.qr-container');
+                qrContainers.forEach(container => {
+                    const code = container.getAttribute('data-code');
+                    container.innerHTML = ''; // Clear any existing content
+                    new QRCode(container, {
+                        text: code,
+                        width: 132, // ~35mm at 96dpi
+                        height: 132,
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                });
+                
+                // Update the URL display
+                updateCurrentUrlDisplay();
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        // Initialize page with URL parameters and generate labels
+        window.onload = function() {
+            const urlParams = getUrlParameters();
+            
+            // Set input values from URL parameters if they exist
+            if (urlParams.startCode) {
+                document.getElementById('startCode').value = urlParams.startCode;
+            }
+            
+            if (urlParams.numCodes && !isNaN(parseInt(urlParams.numCodes))) {
+                document.getElementById('numCodes').value = parseInt(urlParams.numCodes);
+            }
+            
+            if (urlParams.labelsPerContainer && !isNaN(parseInt(urlParams.labelsPerContainer))) {
+                document.getElementById('labelsPerContainer').value = parseInt(urlParams.labelsPerContainer);
+            }
+            
+            // Generate labels with the (possibly updated) values
+            generateLabels();
+            
+            // Add event listeners to update URL display when inputs change
+            document.getElementById('startCode').addEventListener('input', updateCurrentUrlDisplay);
+            document.getElementById('numCodes').addEventListener('input', updateCurrentUrlDisplay);
+            document.getElementById('labelsPerContainer').addEventListener('input', updateCurrentUrlDisplay);
+        };
+    </script>
+</body>
+</html>
