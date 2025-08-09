@@ -1,3 +1,3 @@
-Personal Project
+QR Code Sticker Generator - Used to mark containers with the [ToteTracker App](https://github.com/ThatMattCat/ToteTracker)
 
-[Webpage](https://thatmattcat.github.io/qr-sticker-generator/)
+[Generator Webpage](https://thatmattcat.github.io/qr-sticker-generator/)
